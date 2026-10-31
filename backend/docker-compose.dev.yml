@@ -1,0 +1,31 @@
+# ============================================================
+# 开发热重载覆盖文件 —— 与 docker-compose.yml 叠加使用：
+#
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+#
+# 效果：
+#   - 后端代码以 bind mount 挂载到容器内，保存文件后 uvicorn --reload 自动重启
+#   - 不使用多阶段构建（直接在镜像内安装依赖 + 挂载源码）
+# ============================================================
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    command: python -m uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app/src
+    volumes:
+      - ./src:/app/src
+      - ./migrations:/app/migrations
+      - ./data:/app/data
+      - uploads_data:/app/uploads
+    environment:
+      - LOG_LEVEL=DEBUG
+
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./src:/app/src
+      - uploads_data:/app/uploads

@@ -1,0 +1,127 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── 设计令牌：案头色系 ──────────────────────────────────────
+   墨案（深色桌面）· 熟宣（纸面）· 朱砂（批注/押印）· 石青（交互）
+   变量存 "R G B" 三元组，供 tailwind 的 <alpha-value> 使用 */
+:root {
+  --surface-1: 244 242 236; /* 亮色：书案 */
+  --surface-2: 252 251 247;
+  --surface-3: 224 220 211;
+  --surface-4: 203 198 187;
+  --text: 33 32 28;
+  --muted: 112 110 100;
+  --accent-cyan: 34 105 118;  /* 石青 */
+  --accent-green: 47 122 88;  /* 青绿 */
+  --accent-amber: 176 128 32; /* 藤黄 */
+  --accent-red: 168 50 37;    /* 朱砂 */
+  --accent-purple: 96 88 158; /* 黛蓝 */
+  --paper: 250 247 238;
+  --paper-ink: 45 39 30;
+  --paper-rule: 214 205 186;
+}
+
+/* 深靛蓝运营中心：面板全走半透明靛蓝，卷宗纸面保留但调成冷白 */
+.dark {
+  --surface-1: 8 12 26;    /* 深靛底 */
+  --surface-2: 15 21 42;   /* 面板 */
+  --surface-3: 42 54 88;   /* 边框 */
+  --surface-4: 62 78 120;  /* hover / 亮边框 */
+  --text: 226 235 247;     /* 霜白 */
+  --muted: 141 162 192;    /* 靛灰 */
+  --accent-cyan: 34 211 238;   /* 能量青：主交互 */
+  --accent-green: 45 212 191;  /* 青碧：低风险 / 增 */
+  --accent-amber: 251 146 60;  /* 橙：警示 / 中风险 */
+  --accent-red: 248 113 113;   /* 珊瑚红：高风险 / 删 */
+  --accent-purple: 167 139 250; /* 辅能量紫 */
+  --paper: 235 238 245;   /* 暗案上摊开的一页冷白纸 */
+  --paper-ink: 30 38 55;  /* 墨青 */
+  --paper-rule: 205 212 226;
+}
+
+@layer base {
+  body {
+    font-family: 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+    @apply bg-surface-1 text-text antialiased;
+  }
+  /* 深色氛围：左上能量青 + 右下紫的微光，运营中心的夜空感 */
+  .dark body {
+    background-image:
+      radial-gradient(1100px 560px at 72% -12%, rgb(var(--accent-cyan) / 0.07), transparent 62%),
+      radial-gradient(900px 520px at 8% 112%, rgb(var(--accent-purple) / 0.06), transparent 62%);
+    background-attachment: fixed;
+  }
+  ::selection {
+    background: rgb(var(--accent-cyan) / 0.3);
+  }
+  /* 键盘可达性：所有可聚焦控件有清晰焦点环 */
+  :where(a, button, input, textarea, select, [tabindex]):focus-visible {
+    outline: 2px solid rgb(var(--accent-cyan) / 0.85);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  /* 用户偏好「减少动态效果」时，全部动画即达终态 */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* 一张铺在案头的纸 */
+  .paper-card {
+    background-color: rgb(var(--paper));
+    color: rgb(var(--paper-ink));
+    border: 1px solid rgb(var(--paper-rule));
+    box-shadow: 0 16px 36px -20px rgb(0 0 0 / 0.45), 0 2px 6px -2px rgb(0 0 0 / 0.2);
+  }
+  .dark .paper-card {
+    box-shadow:
+      0 22px 48px -24px rgb(0 0 0 / 0.9),
+      0 0 32px -12px rgb(var(--accent-cyan) / 0.18);
+  }
+  /* 暗格纸纹：只给大段正文用，别到处刷 */
+  .paper-lines {
+    background-image: repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent calc(28px - 1px),
+      rgb(var(--paper-rule) / 0.55) calc(28px - 1px),
+      rgb(var(--paper-rule) / 0.55) 28px
+    );
+    line-height: 28px;
+  }
+  /* 朱笔圈出的原文（对应某条修改建议 / 风险） */
+  .anno-mark {
+    background: rgb(var(--accent-red) / 0.12);
+    border-bottom: 2px solid rgb(var(--accent-red) / 0.65);
+    border-radius: 2px;
+    padding: 0 0.08em;
+    color: inherit;
+    cursor: default;
+  }
+  /* 横扫光带底：与 MOTION.sweep（hover:animate-sweep）搭配用于列表行 */
+  .sweep-band {
+    background-image: linear-gradient(
+      100deg,
+      transparent 42%,
+      rgb(var(--accent-cyan) / 0.14) 50%,
+      transparent 58%
+    );
+    background-size: 300% 100%;
+    background-position: 260% 0; /* 静息时光带停在可视区外 */
+  }
+  /* 落地页底纹：细网格 + 径向渐隐（token 驱动，亮暗两式自适应；只铺在 hero 绝对定位层） */
+  .grid-bg {
+    background-image:
+      linear-gradient(to right, rgb(var(--surface-3) / 0.5) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(var(--surface-3) / 0.5) 1px, transparent 1px);
+    background-size: 44px 44px;
+    -webkit-mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, black 25%, transparent 78%);
+    mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, black 25%, transparent 78%);
+  }
+}

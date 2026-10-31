@@ -1,0 +1,202 @@
+# ============================================================
+# 多语言后端集成本地开发环境
+#
+# 默认启动：Python 后端 + PostgreSQL + Redis
+#   docker compose up -d
+#
+# 可选组件（profile）：
+#   docker compose --profile worker up -d      # + Celery worker
+#   docker compose --profile frontend up -d    # + Vite 前端 (5173)
+#   docker compose --profile milvus up -d      # + Milvus 向量库（etcd+minio+standalone，知识库/RAG 用）
+#
+# 推荐：仅本地开发 Python 版建议使用 backend/docker-compose.yml
+# ============================================================
+
+services:
+  # PostgreSQL 数据库
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: contract_review
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Redis 缓存 / Celery Broker
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Python 版后端
+  python-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - LLM_PROVIDER=${LLM_PROVIDER:-auto}
+      - CONTRACT_LLM_API_KEY=${CONTRACT_LLM_API_KEY:-}
+      - CONTRACT_LLM_BASE_URL=${CONTRACT_LLM_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+      - CONTRACT_LLM_MODEL=${CONTRACT_LLM_MODEL:-qwen-max}
+      - MINIMAX_API_KEY=${MINIMAX_API_KEY:-}
+      - MINIMAX_API_BASE=${MINIMAX_API_BASE:-https://api.minimax.chat/v1}
+      - MINIMAX_MODEL=${MINIMAX_MODEL:-MiniMax-M2.7}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - LLM_MODEL=${LLM_MODEL:-}
+      - APP_HOST=0.0.0.0
+      - APP_PORT=8000
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-dev-secret-change-in-production}
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/contract_review
+      - DATABASE_URL_SYNC=postgresql://postgres:postgres@postgres:5432/contract_review
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - SEED_ON_STARTUP=true
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; r = httpx.get('http://localhost:8000/api/v1/health'); assert r.status_code == 200"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+  # Celery Worker（可选：--profile worker）
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    profiles: ["worker"]
+    command: python -m celery -A src.worker.app:celery_app worker --loglevel=info --concurrency=2
+    environment:
+      - LLM_PROVIDER=${LLM_PROVIDER:-auto}
+      - CONTRACT_LLM_API_KEY=${CONTRACT_LLM_API_KEY:-}
+      - MINIMAX_API_KEY=${MINIMAX_API_KEY:-}
+      - MINIMAX_API_BASE=${MINIMAX_API_BASE:-https://api.minimax.chat/v1}
+      - MINIMAX_MODEL=${MINIMAX_MODEL:-MiniMax-M2.7}
+      - LLM_MODEL=${LLM_MODEL:-}
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/contract_review
+      - DATABASE_URL_SYNC=postgresql://postgres:postgres@postgres:5432/contract_review
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-dev-secret-change-in-production}
+      - SEED_ON_STARTUP=false
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # Vite 前端（可选：--profile frontend）
+  frontend:
+    image: node:20-alpine
+    profiles: ["frontend"]
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5173"
+    ports:
+      - "5173:5173"
+    environment:
+      - NODE_ENV=development
+      - VITE_API_TARGET=http://python-backend:8000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - python-backend
+
+  # ── Milvus 向量库（profile milvus；知识库/RAG 的唯一后端，用到即需启动）──
+  # 数据全在命名卷（etcd_data/minio_data/milvus_data，位于 Docker 的 WSL 磁盘），
+  # 项目目录不产生数据文件；端口只绑 127.0.0.1，不对公网暴露
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.18
+    container_name: milvus-etcd
+    profiles: ["milvus"]
+    environment:
+      - ETCD_AUTO_COMPACTION_MODE=revision
+      - ETCD_AUTO_COMPACTION_RETENTION=1000
+      - ETCD_QUOTA_BACKEND_BYTES=4294967296
+      - ETCD_SNAPSHOT_COUNT=50000
+    volumes:
+      - etcd_data:/etcd
+    command: etcd -advertise-client-urls=http://etcd:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  minio:
+    image: minio/minio:RELEASE.2023-03-20T20-16-18Z
+    container_name: milvus-minio
+    profiles: ["milvus"]
+    environment:
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    ports:
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - minio_data:/minio_data
+    command: minio server /minio_data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  milvus:
+    image: milvusdb/milvus:v2.5.4
+    container_name: milvus-standalone
+    profiles: ["milvus"]
+    command: ["milvus", "run", "standalone"]
+    security_opt:
+      - seccomp=unconfined
+    environment:
+      ETCD_ENDPOINTS: etcd:2379
+      MINIO_ADDRESS: minio:9000
+    volumes:
+      - milvus_data:/var/lib/milvus
+    ports:
+      - "127.0.0.1:19530:19530"
+      - "127.0.0.1:9091:9091"
+    depends_on:
+      etcd:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 30s
+      start_period: 90s
+      timeout: 20s
+      retries: 3
+
+volumes:
+  postgres_data:
+  redis_data:
+  uploads_data:
+  etcd_data:
+  minio_data:
+  milvus_data:

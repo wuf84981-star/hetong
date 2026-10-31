@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual envs
+.venv/
+venv/
+env/
+
+# Local env / secrets
+.env
+.env.local
+.env.*.local
+
+# Runtime data
+uploads/
+*.pdf
+*.docx
+*.log
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+
+# Git
+.git/
+.gitignore
+
+# Tests (production image 不需要)
+tests/
+
+# Alembic (lifespan 自带迁移，不使用 alembic)
+alembic.ini

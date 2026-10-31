@@ -1,0 +1,38 @@
+# ── 密钥与环境（真实配置永不进库，模板保留）──
+.env
+.env.local
+!.env.example
+
+# ── 运行时产物（含真实合同文本/用户数据，绝不进库）──
+backend/uploads/
+backend/data/knowledge_docs/
+backend/data/knowledge_docs.json
+backend/data/bad_cases/
+backend/data/signatures/
+backend/data/checkpoints.sqlite
+backend/data/faiss_index/
+
+# ── 虚拟环境与依赖（可用 requirements.txt / npm install 重建）──
+backend/.venv/
+.venv/
+venv/
+frontend/node_modules/
+
+# ── 构建产物与缓存 ──
+frontend/dist/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+
+# ── 编辑器与系统杂物 ──
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# ── 旧 git 历史备份（新仓库从零开始，不复用）──
+.git-backup-old-history/

@@ -1,0 +1,157 @@
+# ============================================================
+# Python 后端本地开发环境
+#
+# 一键启动：
+#   docker compose up -d           # 启动 postgres + redis + 后端
+#   docker compose up -d --build   # 重新构建镜像并启动
+#   docker compose logs -f backend # 查看后端日志
+#
+# 可选组件（profile）：
+#   docker compose --profile worker up -d     # 加启 Celery worker
+#   docker compose --profile frontend up -d   # 加启 Vite 前端（localhost:5173）
+#
+# 默认账号（由 SEED_ON_STARTUP=true 注入）：
+#   admin / admin123  (角色：admin)
+#   reviewer / admin123
+#   viewer / admin123
+# ============================================================
+
+services:
+  # ── PostgreSQL 16 ────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: cr-postgres
+    restart: unless-stopped
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: contract_review
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      TZ: Asia/Shanghai
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d contract_review"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # ── Redis 7 ───────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: cr-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── Python 后端 API ──────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cr-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      # LLM 提供商（按需要修改或在宿主机 .env 中设置）
+      - LLM_PROVIDER=${LLM_PROVIDER:-auto}
+      - CONTRACT_LLM_API_KEY=${CONTRACT_LLM_API_KEY:-}
+      - CONTRACT_LLM_BASE_URL=${CONTRACT_LLM_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+      - CONTRACT_LLM_MODEL=${CONTRACT_LLM_MODEL:-qwen-max}
+      - MINIMAX_API_KEY=${MINIMAX_API_KEY:-}
+      - MINIMAX_API_BASE=${MINIMAX_API_BASE:-https://api.minimax.chat/v1}
+      - MINIMAX_MODEL=${MINIMAX_MODEL:-MiniMax-M2.7}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_API_BASE=${OPENAI_API_BASE:-https://api.openai.com/v1}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
+      - LLM_MODEL=${LLM_MODEL:-}
+      # 应用
+      - APP_HOST=0.0.0.0
+      - APP_PORT=8000
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - CORS_ORIGINS=*
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-dev-secret-change-in-production}
+      # 数据库 / Redis
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/contract_review
+      - DATABASE_URL_SYNC=postgresql://postgres:postgres@postgres:5432/contract_review
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      # 启动时加载种子数据（仅首次启动 users 表为空时生效）
+      - SEED_ON_STARTUP=true
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; r = httpx.get('http://localhost:8000/api/v1/health'); assert r.status_code == 200"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+  # ── Celery Worker（可选：--profile worker）───────────────
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cr-celery
+    profiles: ["worker"]
+    command: python -m celery -A src.worker.app:celery_app worker --loglevel=info --concurrency=2
+    environment:
+      - LLM_PROVIDER=${LLM_PROVIDER:-auto}
+      - CONTRACT_LLM_API_KEY=${CONTRACT_LLM_API_KEY:-}
+      - CONTRACT_LLM_BASE_URL=${CONTRACT_LLM_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+      - CONTRACT_LLM_MODEL=${CONTRACT_LLM_MODEL:-qwen-max}
+      - MINIMAX_API_KEY=${MINIMAX_API_KEY:-}
+      - MINIMAX_API_BASE=${MINIMAX_API_BASE:-https://api.minimax.chat/v1}
+      - MINIMAX_MODEL=${MINIMAX_MODEL:-MiniMax-M2.7}
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/contract_review
+      - DATABASE_URL_SYNC=postgresql://postgres:postgres@postgres:5432/contract_review
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-dev-secret-change-in-production}
+      - SEED_ON_STARTUP=false
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ── Vite 前端（可选：--profile frontend）────────────────
+  frontend:
+    image: node:20-alpine
+    container_name: cr-frontend
+    profiles: ["frontend"]
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5173"
+    ports:
+      - "5173:5173"
+    environment:
+      - NODE_ENV=development
+      - VITE_API_TARGET=http://backend:8000
+    volumes:
+      - ../frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  redis_data:
+  uploads_data:

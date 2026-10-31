@@ -1,0 +1,83 @@
+{
+  "description": "合同风险识别评测集（金标准）。每条含合同文本与人工标注的风险类型。用于可复现地度量规则引擎/全流水线的 precision/recall/F1，替代文档中无出处的经验数字。",
+  "risk_types": [
+    "unlimited_liability",
+    "unilateral_termination",
+    "unfair_penalty",
+    "auto_renewal",
+    "vague_terms",
+    "exclusive_jurisdiction"
+  ],
+  "cases": [
+    {
+      "id": "case-001",
+      "text": "第一条 付款：买方须在交货后30日内付款。\n第二条 责任：乙方须承担一切损失及赔偿，无上限。\n第三条 争议：因本合同产生的争议仅由甲方所在地人民法院管辖。",
+      "gold_risk_types": [
+        "unlimited_liability",
+        "exclusive_jurisdiction"
+      ]
+    },
+    {
+      "id": "case-002",
+      "text": "第一条 期限：本合同期满后自动续期一年。\n第二条 解除：甲方有权随时单方解除本合同而无需通知乙方。",
+      "gold_risk_types": [
+        "auto_renewal",
+        "unilateral_termination"
+      ]
+    },
+    {
+      "id": "case-003",
+      "text": "第一条 违约：任何一方违约，须向对方双倍赔偿实际损失。\n第二条 其他事项由双方另行协商确定。",
+      "gold_risk_types": [
+        "unfair_penalty",
+        "vague_terms"
+      ]
+    },
+    {
+      "id": "case-004",
+      "text": "第一条 本条款不构成对乙方的无限责任，乙方仅在其过错范围内承担责任。\n第二条 付款按月结算。",
+      "gold_risk_types": []
+    },
+    {
+      "id": "case-005",
+      "text": "第一条 保密：双方应对商业秘密保密，期限三年。\n第二条 交付：卖方应按约定时间交付标的物并通过验收。",
+      "gold_risk_types": []
+    },
+    {
+      "id": "case-006",
+      "text": "第一条 乙方承担全部责任且不设限。\n第二条 未尽事宜视情况而定。\n第三条 本合同排他性管辖于甲方住所地法院。",
+      "gold_risk_types": [
+        "unlimited_liability",
+        "vague_terms",
+        "exclusive_jurisdiction"
+      ]
+    },
+    {
+      "id": "case-007",
+      "text": "第一条 乙方应承担所有责任(包含但不限于:违约金、赔偿金、诉讼费等),具体金额由双方另行协商确定。",
+      "gold_risk_types": [
+        "unlimited_liability",
+        "vague_terms"
+      ]
+    },
+    {
+      "id": "case-008",
+      "text": "第一条 付款：30日内付款。\n第二条 解除：本合同期满后自动续约一年,任何一方可提前30日通知对方解除。",
+      "gold_risk_types": [
+        "auto_renewal"
+      ]
+    },
+    {
+      "id": "case-009",
+      "text": "第一条 知识产权：甲方保留所有源代码版权。\n第二条 保密：双方互负保密义务,期限三年。\n第三条 责任：乙方违约应双倍赔偿实际损失。",
+      "gold_risk_types": [
+        "unfair_penalty"
+      ]
+    },
+    {
+      "id": "case-010",
+      "text": "本合同为软件采购合同,不含任何风险条款,仅约束按时交付与付款。",
+      "gold_risk_types": []
+    }
+  ]
+}
