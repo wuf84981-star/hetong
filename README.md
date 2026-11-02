@@ -1,27 +1,28 @@
 <div align="center">
-
 <h3 align="center">分寸合同 · Fencun Contract</h3>
-
-  <p align="center">
-    跑在你自己机器上的多 Agent 合同审查幕僚：拆条款、挑风险、查合规、给改法，最后拍板的永远是人——合同、法规、卷宗，全在你自己的盘里。
-    <br />
-    <a href="#快速开始"><strong>本地跑起来 »</strong></a>
-    <br />
-  </p>
-
-<details>
-  <summary>目录</summary>
-  <ol>
-    <li><a href="#项目简介">项目简介：解决什么痛点</a></li>
-    <li><a href="#核心亮点">✨ 核心亮点</a></li>
-    <li><a href="#技术栈">🛠️ 技术栈</a></li>
-    <li><a href="#快速开始">🚀 快速启动</a></li>
-    <li><a href="#目录结构">📁 项目目录说明</a></li>
-    <li><a href="#使用示例">📖 使用示例与接口说明</a></li>
-    <li><a href="#后续规划">📋 后续规划</a></li>
-    <li><a href="#参与贡献">参与贡献 / 许可证 / 联系 / 致谢</a></li>
-  </ol>
+<p align="center">
+跑在你自己机器上的多 Agent 合同审查幕僚：拆条款、挑风险、查合规、给改法，最后拍板的永远是人——合同、法规、卷宗，全在你自己的盘里。
+<br />
+<a href="#快速开始"><strong>本地跑起来 »</strong></a>
+<br />
+</p>
+<details style="margin-top: 24px;" open>
+<summary>目录</summary>
+<ol>
+<li><a href="#项目简介">项目简介：解决什么痛点</a></li>
+<li><a href="#核心亮点">✨ 核心亮点</a></li>
+<li><a href="#技术栈">🛠️ 技术栈</a></li>
+<li><a href="#快速开始">🚀 快速启动</a></li>
+<li><a href="#目录结构">📁 项目目录说明</a></li>
+<li><a href="#使用示例">📖 使用示例与接口说明</a></li>
+<li><a href="#后续规划">📋 后续规划</a></li>
+<li><a href="#参与贡献">参与贡献 / 许可证 / 联系 / 致谢</a></li>
+</ol>
 </details>
+</div>
+
+
+
 
 ---
 
